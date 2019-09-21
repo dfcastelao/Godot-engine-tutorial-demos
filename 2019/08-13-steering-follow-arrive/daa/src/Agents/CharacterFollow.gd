@@ -2,22 +2,44 @@ extends KinematicBody2D
 
 
 onready var sprite: Sprite = $TriangleRed
+onready var target := get_node(target_path)
+onready var target_sprite: Sprite = $TargetSprite	#DAA: not included in tutorial, but seen on videos. Nice to see what's happening
 
-const DISTANCE_THRESHOLD := 3.0
+
+const ARRIVE_THRESHOLD := 3.0
+
+export var target_path := NodePath()
+export var follow_offset := 200.0
+export var slow_radius := 200.0
+export var mass := 20.0
 
 export var max_speed := 500.0
 var _velocity := Vector2.ZERO
 
 
 func _physics_process(delta: float) -> void:
-	var target_global_position: Vector2 = get_global_mouse_position()
-	if global_position.distance_to(target_global_position) <  DISTANCE_THRESHOLD:
+	if target == self:
+		set_physics_process(false)
+	var target_global_position: Vector2 = target.global_position
+	
+	var to_target := global_position.distance_to(target_global_position)
+	if to_target <  ARRIVE_THRESHOLD:
 		return
-	_velocity =  Steering.follow(
+		
+	var follow_global_position: Vector2 = (
+		target.global_position - (target_global_position - global_position).normalized() * follow_offset
+		if to_target > follow_offset
+		else global_position
+	)
+	
+	_velocity =  Steering.arrive_to(
 		_velocity,
 		global_position,
-		target_global_position,
-		max_speed
+		follow_global_position,
+		max_speed,
+		slow_radius,
+		mass
 	)
 	_velocity = move_and_slide(_velocity)
 	sprite.rotation = _velocity.angle()
+	target_sprite.global_position = follow_global_position
